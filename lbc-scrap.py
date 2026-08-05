@@ -5,6 +5,36 @@ import pandas
 from dataclasses import fields, is_dataclass
 
 
+PROPERTIES = [
+    "id", 
+    "first_publication_date", 
+    "expiration_date",
+    "category_name",
+    "price",
+    "brand",
+    "model",
+    "regdate",
+    "mileage",
+    "fuel",
+    "gearbox",
+    "doors",
+    "seats",
+    "vehicle_technical_inspection_a",
+    "issuance_date",
+    "vehicle_damage",
+    "vehicle_type",
+    "vehicule_color",
+    "horsepower",
+    "horse_power_din",
+    "vehicle_vsp",
+    "car_price_min",
+    "car_price_max",
+    "region_id",
+    "department_id",
+    "city",
+]
+
+
 #########################################
 # Research
 #########################################
@@ -18,7 +48,7 @@ def search_cars(client: lbc.Client, nb_results: int) -> lbc.Search:
             sort=lbc.Sort.NEWEST,
             ad_type=lbc.AdType.OFFER,
             category=lbc.Category.VEHICULES_VOITURES,
-            price=[0,100_000]
+            price=[0,20_000]
         )
 
 
@@ -46,6 +76,10 @@ def write_json(data: dict, out_path: Path):
         json.dump(data, f, indent=4, ensure_ascii=False)
 
 
+def write_result_json(result: lbc.Search, out_path: Path):
+    write_json(to_plain(result), DATA_DIR / "data.json")
+
+    
 
 #########################################
 # Main
@@ -56,9 +90,11 @@ DATA_DIR = Path(r".\data")
 
 def main():
     client = lbc.Client()
-    nb_results = 10
+    nb_results = 50
     result = search_cars(client, nb_results=nb_results)
-    write_json(to_plain(result), DATA_DIR / "data.json")
+
+    json_out_path =  DATA_DIR / "data.json"
+    write_result_json(result, json_out_path)
 
 
 if __name__ == "__main__":
