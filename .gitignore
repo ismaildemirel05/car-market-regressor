@@ -218,6 +218,8 @@ __marimo__/
 .streamlit/secrets.toml
 
 # Custom
-.claude
 test*.py
-data/
+data/*.db
+models/*.pkl
+logs/*.log
+*.pyc

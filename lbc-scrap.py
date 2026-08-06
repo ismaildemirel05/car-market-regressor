@@ -1,4 +1,5 @@
 import lbc
+from lbc import Region
 import json
 from pathlib import Path
 import pandas
@@ -85,7 +86,23 @@ def write_result_json(result: lbc.Search, out_path: Path):
 # Main
 #########################################
 
-REGIONS = list(lbc.model.Region)
+REGIONS = [
+    Region.ILE_DE_FRANCE,
+    Region.AUVERGNE_RHONE_ALPES,
+    Region.BOURGOGNE_FRANCHE_COMTE,
+    Region.BRETAGNE,
+    Region.CENTRE_VAL_DE_LOIRE,
+    Region.CORSE,
+    Region.GRAND_EST,
+    Region.HAUTS_DE_FRANCE,
+    Region.NORMANDIE,
+    Region.NOUVELLE_AQUITAINE,
+    Region.OCCITANIE,
+    Region.PAYS_DE_LA_LOIRE,
+    Region.PROVENCE_ALPES_COTE_DAZUR,
+]
+
+
 DATA_DIR = Path(r".\data")
 
 def main():
