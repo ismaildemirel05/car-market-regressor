@@ -10,8 +10,8 @@ from datetime import datetime, timezone
 
 def insert_annonce(conn: sqlite3.Connection, ad, region_name: str) -> bool:
     """
-    Insère une annonce si elle n'existe pas déjà (dédoublonnage sur l'id).
-    Retourne True si une nouvelle ligne a été ajoutée, False si elle existait déjà.
+    Insert an annonce if it doesn't already exists (based on id).
+    Returns True if a new line has been added, else False.
     """
     attributs = {
         attr.key: attr.value
@@ -44,7 +44,7 @@ def insert_annonce(conn: sqlite3.Connection, ad, region_name: str) -> bool:
 
 
 def get_recent_annonces(conn: sqlite3.Connection, days: int = 30):
-    """Retourne les annonces scrapées dans les `days` derniers jours."""
+    """Returns the annonces scraped in the `days` last days."""
     cursor = conn.execute(
         """
         SELECT * FROM annonces

@@ -223,3 +223,4 @@ data/*.db
 models/*.pkl
 logs/*.log
 *.pyc
+data/data.json

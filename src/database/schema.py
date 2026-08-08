@@ -7,8 +7,7 @@ import sqlite3
 
 def init_db(db_path: str) -> sqlite3.Connection:
     """
-    Ouvre une connexion à la base et s'assure que la table existe.
-    Sans danger d'appeler cette fonction à chaque run (CREATE TABLE IF NOT EXISTS).
+    Opens a connexion to the db and ensure it exists
     """
     conn = sqlite3.connect(db_path)
     conn.execute(

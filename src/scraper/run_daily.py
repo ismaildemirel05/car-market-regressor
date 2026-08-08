@@ -45,7 +45,7 @@ def run_daily_scrape():
     client = get_client()
     regions = get_todays_regions()
 
-    logger.info("Démarrage du run — régions ciblées : %s", [r.name for r in regions])
+    logger.info("Run starting — target regions : %s", [r.name for r in regions])
 
     total_nouvelles = 0
 
@@ -75,7 +75,7 @@ def run_daily_scrape():
             time.sleep(pause)
 
     logger.info(
-        "Run terminé — %d nouvelles annonces ajoutées. Total en base : %d",
+        "Run ended — %d new annonces added. Total in db : %d",
         total_nouvelles, count_annonces(conn),
     )
     conn.close()

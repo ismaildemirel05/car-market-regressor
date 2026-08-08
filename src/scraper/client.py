@@ -17,10 +17,9 @@ def get_client() -> lbc.Client:
 
 def search_region(client: lbc.Client, region, category, limit: int, page: int = 1):
     """
-    Fait une recherche pour une région donnée.
-    Retourne la liste d'annonces, ou une liste vide en cas de blocage/erreur
-    (on ne fait jamais de retry agressif ici : un blocage doit ralentir le
-    scraper, pas déclencher une nouvelle tentative immédiate).
+    Does a research for a given region
+    Returns the list of annonces or an empty list in case of error
+    (no aggressive retry)
     """
     try:
         result = client.search(
@@ -35,11 +34,11 @@ def search_region(client: lbc.Client, region, category, limit: int, page: int = 
 
     except DatadomeError:
         logger.warning(
-            "Bloqué par DataDome sur %s — arrêt du run, réessaie plus tard.",
+            "Blocked by DataDome on %s — run stopping, retry later.",
             region.name,
         )
         return []
 
     except RequestError as e:
-        logger.warning("Erreur de requête sur %s : %s", region.name, e)
+        logger.warning("Request error on %s : %s", region.name, e)
         return []

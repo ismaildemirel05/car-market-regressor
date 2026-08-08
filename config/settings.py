@@ -42,9 +42,9 @@ DELAI_MAX_SECONDES = 20       # max pause between searchs
 
 def get_todays_regions(n: int = REGIONS_PAR_JOUR) -> list[Region]:
     """
-    Sélectionne n régions différentes en fonction du jour de l'année,
-    de façon à parcourir l'ensemble des régions en rotation sur plusieurs jours
-    plutôt que de tout interroger en une seule session.
+    Selects n different regions based on datetime,
+    to make sure to visit every region over a few days
+    rather than searching for everything instantly.
     """
     jour = datetime.now().timetuple().tm_yday
     start = (jour * n) % len(REGIONS_ACTUELLES)
