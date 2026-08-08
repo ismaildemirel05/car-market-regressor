@@ -18,12 +18,22 @@ import re
 import pandas as pd
 
 # --- Mapping "nom de colonne final" -> "clé réelle dans attributs_json" ---
-ATTRIBUTE_KEYS = {
-    "annee": "regdate",
-    "kilometrage": "mileage",
-    "carburant": "fuel",
-    "boite": "gearbox",
-    "puissance": "horse_power_din",
+
+FEATURES = {
+    "mileage": ("mileage", float),
+    "horse_power": ("horse_power_din", float),
+    "gearbox": ("gearbox", int),
+    "fuel": ("fuel", int),
+    "car_brand": ("u_car_brand", str),
+    "car_model": ("u_car_model", str),
+    "car_version": ("u_car_version", str),
+    "color": ("vehicle_color", str),
+    "first_release_year": ("regdate", int),
+    "doors": ("doors", int),
+    "seats": ("seats", int),
+    "vehicle_type": ("vehicle_type", str),
+    "vehicle_emissions": ("vehicle_euro_emissions_standard", str),
+    "vehicle_damage" : ("vehicle_damage", str),
 }
 
 
@@ -32,7 +42,7 @@ def extract_attribute(attributs: dict, key: str):
     return attributs.get(key)
 
 
-def to_numeric(value) -> float | None:
+def to_numeric(value) -> int | float | None:
     """
     Convertit une valeur potentiellement sale (string avec espaces, unités...)
     en nombre. Retourne None si la conversion échoue.
@@ -40,11 +50,15 @@ def to_numeric(value) -> float | None:
     if value is None:
         return None
     if isinstance(value, (int, float)):
-        return float(value)
+        return value
 
     # Garde uniquement les chiffres (et le point décimal) dans la string
     nettoye = re.sub(r"[^\d.]", "", str(value))
     return float(nettoye) if nettoye else None
+
+
+def clean_val(val: str | int | float, var_type: type) -> int | float | str | None:
+    return to_numeric(val) if (var_type == int) or (var_type == float) else val
 
 
 def clean_row(row: dict) -> dict:
@@ -52,20 +66,16 @@ def clean_row(row: dict) -> dict:
     Transforme une ligne brute de la base (dict) en ligne propre pour le modèle.
     `row` correspond à une ligne retournée par repository.get_recent_annonces().
     """
-    attributs = json.loads(row["attributs_json"]) if row.get("attributs_json") else {}
+    attributes = json.loads(row["attributes_json"]) if row.get("attributes_json") else {}
+    extracted = {feature: clean_val(attributes.get(key, None), var_type) for feature, (key, var_type) in FEATURES.items()}
 
     return {
         "id": row["id"],
-        "prix": to_numeric(row["prix"]),
-        "marque": row["marque"],
+        "price": to_numeric(row["price"]),
+        "vendor": row["brand"],
         "region": row["region"],
-
-        # TODO : une fois ATTRIBUTE_KEYS rempli, décommenter/adapter ces lignes
-        # "annee": to_numeric(extract_attribute(attributs, ATTRIBUTE_KEYS["annee"])),
-        # "kilometrage": to_numeric(extract_attribute(attributs, ATTRIBUTE_KEYS["kilometrage"])),
-        # "carburant": extract_attribute(attributs, ATTRIBUTE_KEYS["carburant"]),
-        # "boite": extract_attribute(attributs, ATTRIBUTE_KEYS["boite"]),
-        # "puissance": to_numeric(extract_attribute(attributs, ATTRIBUTE_KEYS["puissance"])),
+        "department_num": int(to_numeric(row["zipcode"])//1000),
+        **extracted
     }
 
 
@@ -78,7 +88,7 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
     df = pd.DataFrame(lignes_propres)
 
     # Filtres de base à ajuster selon tes besoins :
-    df = df[df["prix"] > 0]          # écarte les prix nuls/négatifs
+    df = df[df["price"] > 0]          # écarte les prix nuls/négatifs
     df = df.drop_duplicates(subset="id")
 
     return df

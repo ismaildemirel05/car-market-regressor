@@ -10,10 +10,10 @@ from datetime import datetime, timezone
 
 def insert_annonce(conn: sqlite3.Connection, ad, region_name: str) -> bool:
     """
-    Insert an annonce if it doesn't already exists (based on id).
+    Insert an annonce if it doesn't already exist (based on id).
     Returns True if a new line has been added, else False.
     """
-    attributs = {
+    attributes = {
         attr.key: attr.value
         for attr in (ad.attributes or {}).values()
     } if isinstance(ad.attributes, dict) else {}
@@ -21,8 +21,8 @@ def insert_annonce(conn: sqlite3.Connection, ad, region_name: str) -> bool:
     cursor = conn.execute(
         """
         INSERT OR IGNORE INTO annonces
-            (id, date_scrape, first_pub_date, titre, prix, marque,
-             region, department, zipcode, attributs_json, url)
+            (id, scrape_date, first_pub_date, title, price, brand,
+             region, department, zipcode, attributes_json, url)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
@@ -35,7 +35,7 @@ def insert_annonce(conn: sqlite3.Connection, ad, region_name: str) -> bool:
             region_name,
             ad.location.department_name if ad.location else None,
             ad.location.zipcode if ad.location else None,
-            json.dumps(attributs, ensure_ascii=False),
+            json.dumps(attributes, ensure_ascii=False),
             ad.url,
         ),
     )
@@ -48,7 +48,7 @@ def get_recent_annonces(conn: sqlite3.Connection, days: int = 30):
     cursor = conn.execute(
         """
         SELECT * FROM annonces
-        WHERE date_scrape >= datetime('now', ?)
+        WHERE scrape_date >= datetime('now', ?)
         """,
         (f"-{days} days",),
     )

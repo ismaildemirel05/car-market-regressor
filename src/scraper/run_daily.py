@@ -66,7 +66,7 @@ def run_daily_scrape():
 
             total_nouvelles += nouvelles
             logger.info(
-                "%s (page %d) : %d annonces reçues, %d nouvelles",
+                "%s (page %d) : %d fetched annonces, %d new",
                 region.name, page, len(ads), nouvelles,
             )
 

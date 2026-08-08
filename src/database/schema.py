@@ -14,15 +14,15 @@ def init_db(db_path: str) -> sqlite3.Connection:
         """
         CREATE TABLE IF NOT EXISTS annonces (
             id              TEXT PRIMARY KEY,
-            date_scrape     TEXT NOT NULL,
+            scrape_date     TEXT NOT NULL,
             first_pub_date  TEXT,
-            titre           TEXT,
-            prix            REAL,
-            marque          TEXT,
+            title           TEXT,
+            price           REAL,
+            brand           TEXT,
             region          TEXT,
             department      TEXT,
             zipcode         TEXT,
-            attributs_json  TEXT,
+            attributes_json TEXT,
             url             TEXT
         )
         """
