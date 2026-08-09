@@ -20,6 +20,7 @@ transformer and the model itself.
 import pandas as pd
 from sklearn.base import BaseEstimator, TransformerMixin
 
+# --- Columns handled by simple one-hot encoding (low cardinality) ---
 ONEHOT_COLUMNS = [
     "car_brand",
     "fuel",
@@ -48,6 +49,12 @@ class FixedCategoryOneHotEncoder(BaseEstimator, TransformerMixin):
     set of categories before calling get_dummies, so train, test, and
     future single-row predictions always end up with identical columns
     — even if a category is missing, or a never-seen category appears.
+
+    Missing values (NaN) get their own explicit dummy column
+    (e.g. color_nan) rather than silently ending up as all-zeros across
+    every category column — this lets the model learn from the fact that
+    a value was missing, instead of treating it as indistinguishable
+    from "none of the known categories".
     """
 
     def __init__(self, columns=None):
@@ -68,7 +75,7 @@ class FixedCategoryOneHotEncoder(BaseEstimator, TransformerMixin):
                 continue
 
             X[column] = pd.Categorical(X[column], categories=known_categories)
-            dummies = pd.get_dummies(X[column], prefix=column, dtype=int)
+            dummies = pd.get_dummies(X[column], prefix=column, dtype=int, dummy_na=True)
             X = pd.concat([X.drop(columns=[column]), dummies], axis=1)
 
         return X
