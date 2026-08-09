@@ -22,12 +22,12 @@ import pandas as pd
 FEATURES = {
     "mileage": ("mileage", float),
     "horse_power": ("horse_power_din", float),
-    "gearbox": ("gearbox", int),
-    "fuel": ("fuel", int),
+    "gearbox": ("gearbox", str),
+    "fuel": ("fuel", str),
     "car_brand": ("u_car_brand", str),
     "car_model": ("u_car_model", str),
     "car_version": ("u_car_version", str),
-    "color": ("vehicle_color", str),
+    "color": ("vehicule_color", str),
     "first_release_year": ("regdate", int),
     "doors": ("doors", int),
     "seats": ("seats", int),
@@ -104,4 +104,4 @@ if __name__ == "__main__":
 
     annonces = get_recent_annonces(conn, days=30)
     df = build_clean_dataframe(annonces)
-    print(df.head(5))
+    print(df["color"].unique())
