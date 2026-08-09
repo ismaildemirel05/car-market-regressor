@@ -14,6 +14,7 @@ les identifier, puis remplis le mapping.
 
 import json
 import re
+from datetime import datetime
 
 import pandas as pd
 
@@ -72,8 +73,7 @@ def clean_row(row: dict) -> dict:
     return {
         "id": row["id"],
         "price": to_numeric(row["price"]),
-        "vendor": row["brand"],
-        "region": row["region"],
+        # "region": row["region"],
         "department_num": int(to_numeric(row["zipcode"])//1000),
         **extracted
     }
@@ -90,6 +90,14 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
     # Filtres de base à ajuster selon tes besoins :
     df = df[df["price"] > 0]          # écarte les prix nuls/négatifs
     df = df.drop_duplicates(subset="id")
+
+    # useless columns (unique values)
+    df = df.drop(columns=["car_version"])
+
+    # Transforme l'année d'immatriculation en âge du véhicule (plus robuste dans le temps)
+    if "first_release_year" in df.columns:
+        df["age"] = datetime.now().year - df["first_release_year"]
+        df = df.drop(columns=["first_release_year"])
 
     return df
 
