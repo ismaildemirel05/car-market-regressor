@@ -1,35 +1,31 @@
 """
 Feature encoding layer.
 
-Turns the clean, typed DataFrame produced by `cleaning.py` into a fully
-numeric DataFrame ready for model training.
+Turns categorical columns into numeric ones, packaged as two
+scikit-learn compatible transformers:
+    - FixedCategoryOneHotEncoder : one-hot encoding for low-cardinality
+      columns (car_brand, fuel, gearbox, vehicle_type, region), with the
+      set of categories learned at fit time so train/test/future data
+      always produce the exact same columns.
+    - SmoothedTargetEncoder : target encoding for high-cardinality columns
+      (car_model, department_num), replacing each category with a
+      smoothed average of the target (price), learned on the training
+      set only to avoid leakage.
 
-This module deliberately separates two steps:
-    - fit_encoders(df_train, ...)  -> learns encoding parameters from the
-      training data ONLY (category lists, target means, etc.)
-    - apply_encoders(df, encoders) -> applies the previously learned
-      parameters to any DataFrame (train, test, or a single new ad)
-
-This fit/transform split avoids data leakage (e.g. computing a category's
-average price using rows that are also used for evaluation) and guarantees
-that train and test end up with the exact same columns, even if some rare
-category only appears in one of the two sets.
+Both follow the scikit-learn estimator API (BaseEstimator + TransformerMixin)
+so they can be chained inside a Pipeline alongside the imputation
+transformer and the model itself.
 """
 
-from dataclasses import dataclass, field
-
 import pandas as pd
+from sklearn.base import BaseEstimator, TransformerMixin
 
-# --- Columns handled by simple one-hot encoding (low cardinality) ---
 ONEHOT_COLUMNS = [
     "car_brand",
     "fuel",
     "gearbox",
     "vehicle_type",
     "color",
-    "vehicle_emissions",
-    "vehicle_damage",
-    # "region",
 ]
 
 # --- Columns handled by target encoding (high cardinality) ---
@@ -39,123 +35,109 @@ TARGET_ENCODED_COLUMNS = [
 ]
 
 # Smoothing strength for target encoding: higher m means rare categories
-# are pulled closer to the global mean. See docstring of target_encode_fit.
+# are pulled closer to the global mean. See SmoothedTargetEncoder docstring.
 TARGET_ENCODING_SMOOTHING = 10
 
 
-@dataclass
-class Encoders:
+class FixedCategoryOneHotEncoder(BaseEstimator, TransformerMixin):
     """
-    Holds every parameter learned from the training set.
-    Must be produced by fit_encoders() and passed unchanged to
-    apply_encoders() for train, test, and any future prediction.
+    One-hot encodes a fixed list of low-cardinality columns.
+
+    fit() records the categories seen in the training data for each
+    column; transform() forces every DataFrame to use that exact same
+    set of categories before calling get_dummies, so train, test, and
+    future single-row predictions always end up with identical columns
+    — even if a category is missing, or a never-seen category appears.
     """
-    onehot_categories: dict = field(default_factory=dict)   # column -> list of known categories
-    target_maps: dict = field(default_factory=dict)         # column -> {category: encoded_value}
-    global_mean: float = 0.0                                # fallback for unseen categories
+
+    def __init__(self, columns=None):
+        self.columns = columns if columns is not None else list(ONEHOT_COLUMNS)
+
+    def fit(self, X: pd.DataFrame, y=None):
+        self.categories_ = {
+            column: sorted(X[column].dropna().unique().tolist())
+            for column in self.columns
+            if column in X.columns
+        }
+        return self
+
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = X.copy()
+        for column, known_categories in self.categories_.items():
+            if column not in X.columns:
+                continue
+
+            X[column] = pd.Categorical(X[column], categories=known_categories)
+            dummies = pd.get_dummies(X[column], prefix=column, dtype=int)
+            X = pd.concat([X.drop(columns=[column]), dummies], axis=1)
+
+        return X
 
 
-def target_encode_fit(
-    series: pd.Series,
-    target: pd.Series,
-    smoothing: float = TARGET_ENCODING_SMOOTHING,
-) -> tuple[dict, float]:
+class SmoothedTargetEncoder(BaseEstimator, TransformerMixin):
     """
-    Learns a smoothed target encoding map for one categorical column.
+    Target-encodes a fixed list of high-cardinality columns, using a
+    smoothed average of the target rather than the raw category mean:
 
-    For each category, the encoded value is a weighted average between:
-        - the category's own mean target value
-        - the global mean target value
-
-    The weighting depends on how many rows the category has (n):
         encoded = (n * category_mean + smoothing * global_mean) / (n + smoothing)
 
-    A category seen only once or twice ends up very close to the global
-    mean instead of taking its own (unreliable) average at face value.
+    where n is the number of training rows for that category. A category
+    seen only once or twice ends up close to the global mean instead of
+    taking its own (unreliable) average at face value.
+
+    Unlike FixedCategoryOneHotEncoder, fit() requires y (the target,
+    e.g. price) since the whole point is to learn the relationship
+    between each category and the target — this is standard for a
+    supervised transformer in scikit-learn.
     """
-    global_mean = target.mean()
 
-    stats = target.groupby(series).agg(["mean", "count"])
-    smoothed = (
-        stats["count"] * stats["mean"] + smoothing * global_mean
-    ) / (stats["count"] + smoothing)
+    def __init__(self, columns=None, smoothing: float = TARGET_ENCODING_SMOOTHING):
+        self.columns = columns if columns is not None else list(TARGET_ENCODED_COLUMNS)
+        self.smoothing = smoothing
 
-    return smoothed.to_dict(), global_mean
+    def fit(self, X: pd.DataFrame, y: pd.Series):
+        X = X.reset_index(drop=True)
+        y = pd.Series(y).reset_index(drop=True)
 
+        self.global_mean_ = y.mean()
+        self.target_maps_ = {}
 
-def target_encode_apply(
-    series: pd.Series,
-    encoding_map: dict,
-    global_mean: float,
-) -> pd.Series:
-    """
-    Applies a previously learned target encoding map to a column.
-    Categories not present in the map (unseen at fit time) fall back
-    to the global mean instead of raising an error or producing NaN.
-    """
-    return series.map(encoding_map).fillna(global_mean)
+        for column in self.columns:
+            if column not in X.columns:
+                continue
 
+            stats = y.groupby(X[column]).agg(["mean", "count"])
+            smoothed = (
+                stats["count"] * stats["mean"] + self.smoothing * self.global_mean_
+            ) / (stats["count"] + self.smoothing)
+            self.target_maps_[column] = smoothed.to_dict()
 
-def fit_encoders(df_train: pd.DataFrame, target_column: str = "price") -> Encoders:
-    """
-    Learns every encoding parameter from the training set only.
-    Must be called once, on df_train, before any call to apply_encoders.
-    """
-    encoders = Encoders()
-    target = df_train[target_column]
+        return self
 
-    for column in ONEHOT_COLUMNS:
-        if column in df_train.columns:
-            encoders.onehot_categories[column] = sorted(
-                df_train[column].dropna().unique().tolist()
-            )
+    def transform(self, X: pd.DataFrame) -> pd.DataFrame:
+        X = X.copy()
+        for column, encoding_map in self.target_maps_.items():
+            if column not in X.columns:
+                continue
+            # Categories unseen at fit time fall back to the global mean
+            # instead of producing NaN.
+            X[column] = X[column].map(encoding_map).fillna(self.global_mean_)
 
-    for column in TARGET_ENCODED_COLUMNS:
-        if column in df_train.columns:
-            encoding_map, global_mean = target_encode_fit(df_train[column], target)
-            encoders.target_maps[column] = encoding_map
-            encoders.global_mean = global_mean
-
-    return encoders
-
-
-def apply_encoders(df: pd.DataFrame, encoders: Encoders) -> pd.DataFrame:
-    """
-    Applies encoding parameters learned by fit_encoders() to any
-    DataFrame (train, test, or a single new ad to predict).
-
-    Returns a new DataFrame; does not mutate the input.
-    """
-    df = df.copy()
-
-    for column, known_categories in encoders.onehot_categories.items():
-        if column not in df.columns:
-            continue
-
-        # Force the column's categories to exactly match what was seen
-        # at fit time, so get_dummies always produces the same columns,
-        # regardless of which categories are present in df.
-        df[column] = pd.Categorical(df[column], categories=known_categories)
-        dummies = pd.get_dummies(df[column], prefix=column, dtype=int)
-        df = pd.concat([df.drop(columns=[column]), dummies], axis=1)
-
-    for column, encoding_map in encoders.target_maps.items():
-        if column not in df.columns:
-            continue
-        df[column] = target_encode_apply(df[column], encoding_map, encoders.global_mean)
-
-    return df
+        return X
 
 
 if __name__ == "__main__":
     # Quick manual check with a tiny fake dataset
     fake_df = pd.DataFrame({
-        "price": [10000, 12000, 9000, 15000, 20000],
         "car_brand": ["Peugeot", "Renault", "Peugeot", "BMW", "BMW"],
         "car_model": ["208", "Clio", "208", "X1", "X3"],
         "fuel": ["Diesel", "Essence", "Diesel", "Essence", "Diesel"],
     })
+    fake_price = pd.Series([10000, 12000, 9000, 15000, 20000])
 
-    encoders = fit_encoders(fake_df)
-    result = apply_encoders(fake_df, encoders)
+    onehot = FixedCategoryOneHotEncoder()
+    target_enc = SmoothedTargetEncoder()
+
+    result = onehot.fit_transform(fake_df)
+    result = target_enc.fit_transform(result, fake_price)
     print(result)

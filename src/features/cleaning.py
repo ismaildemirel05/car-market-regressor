@@ -18,7 +18,7 @@ from datetime import datetime
 
 import pandas as pd
 
-# --- Mapping "nom de colonne final" -> "clé réelle dans attributs_json" ---
+# --- Mapping "column name" -> ("key in attributes.json", type) ---
 
 FEATURES = {
     "mileage": ("mileage", float),
@@ -27,14 +27,14 @@ FEATURES = {
     "fuel": ("fuel", str),
     "car_brand": ("u_car_brand", str),
     "car_model": ("u_car_model", str),
-    "car_version": ("u_car_version", str),
+    # "car_version": ("u_car_version", str),
     "color": ("vehicule_color", str),
     "first_release_year": ("regdate", int),
     "doors": ("doors", int),
     "seats": ("seats", int),
     "vehicle_type": ("vehicle_type", str),
-    "vehicle_emissions": ("vehicle_euro_emissions_standard", str),
-    "vehicle_damage" : ("vehicle_damage", str),
+    # "vehicle_emissions": ("vehicle_euro_emissions_standard", str),
+    # "vehicle_damage" : ("vehicle_damage", str),
 }
 
 
@@ -88,11 +88,9 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
     df = pd.DataFrame(lignes_propres)
 
     # Filtres de base à ajuster selon tes besoins :
+    df = df.dropna(subset=["price"])
     df = df[df["price"] > 0]          # écarte les prix nuls/négatifs
     df = df.drop_duplicates(subset="id")
-
-    # useless columns (unique values)
-    df = df.drop(columns=["car_version"])
 
     # Transforme l'année d'immatriculation en âge du véhicule (plus robuste dans le temps)
     if "first_release_year" in df.columns:
@@ -104,12 +102,18 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
 
 if __name__ == "__main__":
 
+    import sys
+    from pathlib import Path
+
+    sys.path.append(str(Path(__file__).resolve().parents[2]))
+
     from src.database.repository import get_recent_annonces
     from src.database.schema import init_db
+    
 
     db_path = "data/annonces_voitures.db"
     conn = init_db(db_path)
 
     annonces = get_recent_annonces(conn, days=30)
     df = build_clean_dataframe(annonces)
-    print(df["color"].unique())
+    print(df.isna().mean())
