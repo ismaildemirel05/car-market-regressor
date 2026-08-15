@@ -29,7 +29,7 @@ OUTLIER_RANGES = {
     "seats": (1, 9),
     "doors": (1, 6),
     "mileage": (0, 500_000),
-    "horse_power": (1, 1000),
+    "horse_power": (1, 2000),
     "age": (0, 50),
 }
 

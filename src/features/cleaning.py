@@ -18,6 +18,24 @@ from datetime import datetime
 
 import pandas as pd
 
+# --- Mapping falsely numerical cols to their real values ---
+
+FUEL = {
+    "1": "Essence",
+    "2": "Diesel",
+    "3": "GPL",
+    "4": "Électrique",
+    "5": "Autre",
+    "6": "Hybride",
+    "7": "Gaz Naturel (GNV)",
+    "8": "Hybride Rechargeable",
+}
+
+GEARBOX = {
+    "1": "Manuelle",
+    "2": "Automatique",
+}
+
 # --- Mapping "column name" -> ("key in attributes.json", type) ---
 
 FEATURES = {
@@ -62,6 +80,20 @@ def clean_val(val: str | int | float, var_type: type) -> int | float | str | Non
     return to_numeric(val) if (var_type == int) or (var_type == float) else val
 
 
+def year_to_age(year: int | float | None) -> float | None:
+    """
+    Converts a registration year into a car's age in years.
+
+    Extracted as a standalone function so that predict.py can reuse the
+    exact same logic for a single, manually-entered car instead of
+    duplicating the date arithmetic elsewhere — keeping training and
+    prediction consistent (avoids train/serving skew).
+    """
+    if year is None or pd.isna(year):
+        return None
+    return datetime.now().year - year
+
+
 def clean_row(row: dict) -> dict:
     """
     Transforme une ligne brute de la base (dict) en ligne propre pour le modèle.
@@ -94,7 +126,7 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
 
     # Transforme l'année d'immatriculation en âge du véhicule (plus robuste dans le temps)
     if "first_release_year" in df.columns:
-        df["age"] = datetime.now().year - df["first_release_year"]
+        df["age"] = df["first_release_year"].apply(year_to_age)
         df = df.drop(columns=["first_release_year"])
 
     return df
@@ -116,4 +148,5 @@ if __name__ == "__main__":
 
     annonces = get_recent_annonces(conn, days=30)
     df = build_clean_dataframe(annonces)
-    print(df.isna().mean())
+    df = df.set_index("id")
+    print(df["vehicle_type"].unique())

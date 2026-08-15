@@ -32,7 +32,7 @@ REGIONS_ACTUELLES = [
 ]
 
 # --- Scraping parameters (adapt if you're blocked) ---
-REGIONS_PAR_JOUR = 6          # nb of regions explored daily
+REGIONS_PAR_JOUR = 13          # nb of regions explored daily
 LIMIT_PAR_RECHERCHE = 50      # nb annonces per search
 PAGES_PAR_REGION = 1          # nb pages per region and per run
 

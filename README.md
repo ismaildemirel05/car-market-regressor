@@ -54,9 +54,9 @@ car-price-predictor/
 - [x] Scraper (`client.py`, `run_daily.py`) collecting listings from LeBonCoin
 - [x] SQLite database with dynamic schema driven by `config/settings.py`
 - [x] Incremental daily collection across French regions
-- [ ] Feature extraction layer (mapping raw LeBonCoin attributes to clean columns)
-- [ ] Model training and evaluation
-- [ ] Prediction interface
+- [x] Feature extraction layer (mapping raw LeBonCoin attributes to clean columns)
+- [x] Model training and evaluation
+- [x] Prediction API
 
 ## Tech stack
 
