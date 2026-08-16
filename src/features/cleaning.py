@@ -121,7 +121,7 @@ def build_clean_dataframe(rows: list[dict]) -> pd.DataFrame:
 
     # Filtres de base à ajuster selon tes besoins :
     df = df.dropna(subset=["price"])
-    df = df[df["price"] > 0]          # écarte les prix nuls/négatifs
+    df = df[df["price"] > 1000]          # drops negociation prices
     df = df.drop_duplicates(subset="id")
 
     # Transforme l'année d'immatriculation en âge du véhicule (plus robuste dans le temps)
@@ -149,4 +149,4 @@ if __name__ == "__main__":
     annonces = get_recent_annonces(conn, days=30)
     df = build_clean_dataframe(annonces)
     df = df.set_index("id")
-    print(df["vehicle_type"].unique())
+    print(df["price"].sort_values().tail(50))
